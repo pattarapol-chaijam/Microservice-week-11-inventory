@@ -1,6 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import { AppService } from './app.service';
 import {
+  ClientProxy,
   Ctx,
   MessagePattern,
   Payload,
@@ -10,7 +11,10 @@ import { console } from 'inspector';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    @Inject('ORDER_SERVICE') private orderService: ClientProxy,
+  ) {}
 
   @Get()
   getHello(): string {
@@ -19,7 +23,6 @@ export class AppController {
 
   @MessagePattern('order_created')
   handleOrderCreated(@Payload() data: any, @Ctx() context: RmqContext) {
-    console.log(`Pattern: ${context.getPattern()}`);
     const channel = context.getChannelRef();
     const originalMessage = context.getMessage();
     console.log('Order received for processing:', data);
@@ -27,9 +30,13 @@ export class AppController {
     if (isInstock) {
       console.log('Inventory available. Processing order.');
       channel.ack(originalMessage);
+      // Completed   Order
+      this.orderService.emit('order_completed', data);
     } else {
       console.log('Inventory not available.');
-      channel.nack(originalMessage);
+      channel.ack(originalMessage);
+      //Canceled Order
+      this.orderService.emit('order_canceled', data);
     }
   }
 }
