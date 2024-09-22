@@ -7,7 +7,6 @@ import {
   Payload,
   RmqContext,
 } from '@nestjs/microservices';
-import { console } from 'inspector';
 
 @Controller()
 export class AppController {
@@ -23,19 +22,22 @@ export class AppController {
 
   @MessagePattern('order_created')
   handleOrderCreated(@Payload() data: any, @Ctx() context: RmqContext) {
+    // console.log(`Pattern: ${context.getPattern()}`);
+    // console.log(context.getMessage());
+    // console.log(context.getChannelRef());
     const channel = context.getChannelRef();
-    const originalMessage = context.getMessage();
+    const originalMsg = context.getMessage();
     console.log('Order received for processing:', data);
-    const isInstock = true;
-    if (isInstock) {
+    const isInStock = false;
+    if (isInStock) {
       console.log('Inventory available. Processing order.');
-      channel.ack(originalMessage);
-      // Completed   Order
+      channel.ack(originalMsg);
+      // Completed Order
       this.orderService.emit('order_completed', data);
     } else {
       console.log('Inventory not available.');
-      channel.ack(originalMessage);
-      //Canceled Order
+      channel.ack(originalMsg);
+      // Canceled Order
       this.orderService.emit('order_canceled', data);
     }
   }
